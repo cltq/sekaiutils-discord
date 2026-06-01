@@ -70,6 +70,8 @@ async function run() {
 
   // Log in with your bot token
   await bot.login(process.env.BOT_TOKEN);
+
+  console.log(process.argv[1]);
 }
 
 void run();

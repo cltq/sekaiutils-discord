@@ -1,0 +1,3 @@
+// allowlist.txt
+// Format: guildId: userId, username
+// One entry per line
