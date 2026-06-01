@@ -1,6 +1,10 @@
 import { dirname, importx } from "@discordx/importer";
 import { IntentsBitField, type Interaction, type Message } from "discord.js";
 import { Client } from "discordx";
+import { config } from "dotenv";
+
+// Load .env file if it exists
+config();
 
 export const bot = new Client({
   // To use only guild command
