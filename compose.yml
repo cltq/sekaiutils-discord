@@ -1,6 +1,5 @@
 services:
   bot:
-    image: ghcr.io/${GITHUB_REPOSITORY:-cltq/sekaiutils-discord}:latest
     build: .
     working_dir: /app
     environment:
