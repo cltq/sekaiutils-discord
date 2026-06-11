@@ -5,3 +5,5 @@
 .venv
 __pycache__
 *.pyc
+
+guild_configs.json
