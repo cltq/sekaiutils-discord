@@ -1,9 +1,8 @@
 services:
   bot:
+    image: ghcr.io/${GITHUB_REPOSITORY:-cltq/sekaiutils-discord}:latest
     build: .
     working_dir: /app
-    volumes:
-      - .:/app
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - BOT_CREATOR=${BOT_CREATOR}
