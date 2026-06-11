@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_CREATOR=${BOT_CREATOR}
+    command: python3 bot.py
+    restart: unless-stopped

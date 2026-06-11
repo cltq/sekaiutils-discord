@@ -1,5 +1,5 @@
-node_modules
-build
+.venv
 .git
+__pycache__
+*.pyc
 .env
-*.md

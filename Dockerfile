@@ -1,27 +1,9 @@
-## build runner
-FROM node:lts-alpine AS build-runner
-
-WORKDIR /tmp/app
-
-COPY package.json ./
-
-RUN npm install
-
-COPY src ./src
-COPY tsconfig.json .
-
-RUN npm run build
-
-## production runner
-FROM node:lts-alpine AS prod-runner
+FROM python:latest
 
 WORKDIR /app
 
-COPY --from=build-runner /tmp/app/package.json ./package.json
+COPY requirements.txt .
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN npm install --omit=dev
-
-COPY --from=build-runner /tmp/app/build ./build
-COPY allowlist.txt ./allowlist.txt
-
-CMD ["node", "build/main.js"]
+COPY . .
