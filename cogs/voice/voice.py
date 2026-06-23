@@ -74,14 +74,14 @@ class Voice(commands.Cog):
             msg = f"เชื่อมต่อ {target.mention} แล้ว"
 
         if auto_read:
-            set_guild(interaction.guild_id, "auto_read_channel_id", interaction.channel_id)
+            set_guild(interaction.guild_id, "auto_read_channel_id", target.id)
             set_guild(interaction.guild_id, "auto_read_enabled", True)
             msg += " และเปิดอ่านข้อความอัตโนมัติ"
         else:
             set_guild(interaction.guild_id, "auto_read_enabled", False)
             msg += " และปิดอ่านข้อความอัตโนมัติ"
 
-        await interaction.response.send_message(msg, ephemeral=True)
+        await interaction.response.send_message(msg)
 
     @discord.app_commands.command(name="leave", description="ออกจากห้องเสียง")
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
@@ -90,47 +90,9 @@ class Voice(commands.Cog):
         vc = interaction.guild.voice_client
         if vc:
             await vc.disconnect(force=True)
-            await interaction.response.send_message(
-                "ออกจากห้องเสียงแล้ว", ephemeral=True
-            )
+            await interaction.response.send_message("ออกจากห้องเสียงแล้ว")
         else:
-            await interaction.response.send_message(
-                "บอทไม่ได้อยู่ในห้องเสียง", ephemeral=True
-            )
-
-    @discord.app_commands.command(name="control", description="ควบคุมการได้ยิน/พูดของบอทในห้องเสียง")
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
-    @app_commands.describe(
-        mute="ปิดไมค์บอท (คนอื่นไม่ได้ยินบอท)",
-        deafen="ปิดหูบอท (บอทไม่ได้ยินและคนอื่นไม่ได้ยินบอท)",
-    )
-    async def control(
-        self,
-        interaction: discord.Interaction,
-        mute: bool | None = None,
-        deafen: bool | None = None,
-    ):
-        vc = interaction.guild.voice_client
-        if not vc or not vc.is_connected():
-            await interaction.response.send_message(
-                "บอทไม่ได้อยู่ในห้องเสียง", ephemeral=True
-            )
-            return
-
-        kwargs = {}
-        if mute is not None:
-            kwargs["mute"] = mute
-        if deafen is not None:
-            kwargs["deafen"] = deafen
-        if not kwargs:
-            kwargs["deafen"] = True
-        await interaction.guild.me.edit(**kwargs)
-
-        label_map = {"mute": "ปิดไมค์", "deafen": "ปิดหู"}
-        labels = [f"{label_map.get(k, k)}={v}" for k, v in kwargs.items()]
-        await interaction.response.send_message(
-            f"ตั้งค่า: {', '.join(labels)}", ephemeral=True,
-        )
+            await interaction.response.send_message("บอทไม่ได้อยู่ในห้องเสียง")
 
     async def _read_queue(
         self,
@@ -255,11 +217,22 @@ class Voice(commands.Cog):
         cfg = get_guild(message.guild.id)
         if not cfg.get("auto_read_enabled"):
             return
-        if message.channel.id != cfg.get("auto_read_channel_id"):
-            return
 
         vc = message.guild.voice_client
         if not vc or not vc.is_connected():
+            return
+
+        voice_channel_id = cfg.get("auto_read_channel_id")
+        if not voice_channel_id:
+            return
+        voice_channel = message.guild.get_channel(voice_channel_id)
+        if not isinstance(voice_channel, discord.VoiceChannel):
+            return
+
+        text_channel = discord.utils.get(
+            message.guild.text_channels, name=voice_channel.name
+        )
+        if not text_channel or message.channel.id != text_channel.id:
             return
 
         voice = cfg.get("default_voice", DEFAULT_VOICE)
