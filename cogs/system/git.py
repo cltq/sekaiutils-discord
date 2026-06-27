@@ -44,10 +44,11 @@ class Git(commands.Cog):
     @app_commands.describe(
         remote="เลือก remote ที่ต้องการดู commits",
         all="แสดงทุก commits (true) หรือแค่ 5 ล่าสุด (false)",
+        ephemeral="ตอบกลับแบบส่วนตัว (default: false)",
     )
     @app_commands.choices(remote=REMOTE_CHOICES)
-    async def git(self, interaction: discord.Interaction, remote: str, all: bool = False):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+    async def git(self, interaction: discord.Interaction, remote: str, all: bool = False, ephemeral: bool = False):
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
         embed = EmbedBuilder.hex("#F05032", "📋 Git Log")
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
@@ -56,7 +57,7 @@ class Git(commands.Cog):
         label = REMOTE_LABELS.get(remote, remote)
         embed.add_inline_field(f"🔗 {label} ({remote}/main)", f"```{log}```", inline=False)
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
 
 async def setup(bot):
