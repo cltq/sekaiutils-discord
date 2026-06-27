@@ -7,6 +7,7 @@ cogs/                          # โหลดทั้งหมดอัตโ�
 ├── fumi/authorizer.py         # /auth — OAuth2 verification
 ├── general/help.py            # /help — Bot info
 ├── voice/voice.py             # TTS voice commands (edge-tts)
+├── prosekai/chart/chart.py    # /chart, /songs — chart viewer + song list
 └── pjsk_info_summarize/       # Static info commands
     ├── crystal_info/crystal_info.py   # /ข้อมูลการหาเพชร
     ├── otp/onetime_password.py        # /ข้อมูลการยืมไอดี
