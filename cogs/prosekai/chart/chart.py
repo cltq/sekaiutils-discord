@@ -39,6 +39,10 @@ DIFFICULTY_ORDER = ["easy", "normal", "hard", "expert", "master", "append"]
 
 SONGS_PER_PAGE = 20
 
+ASSET_CDN = "https://storage.sekai.best"
+CHART_CDN = f"{ASSET_CDN}/sekai-music-charts/jp"
+JACKET_CDN = f"{ASSET_CDN}/sekai-jp-assets/music/jacket"
+
 
 class Chart(commands.Cog):
     __cog_name__ = "Chart"
@@ -79,6 +83,14 @@ class Chart(commands.Cog):
             return {}
         musics, _ = en_pair
         return {s["id"]: s.get("title", "") for s in musics}
+
+    @staticmethod
+    def _chart_image_url(song_id: int, difficulty: str) -> str:
+        return f"{CHART_CDN}/{str(song_id).zfill(4)}/{difficulty}.png"
+
+    @staticmethod
+    def _jacket_url(assetbundle_name: str) -> str:
+        return f"{JACKET_CDN}/{assetbundle_name}/{assetbundle_name}.webp"
 
     def _match_song(self, query: str, server_data: tuple[list[dict], dict[int, list[dict]]] | None):
         if server_data is None:
@@ -209,6 +221,7 @@ class Chart(commands.Cog):
 
         embed = EmbedBuilder.hex("#FF66AA", f"🎵 {display}")
         embed.set_footer(text=f"ID: {song['id']} — Requested by {interaction.user.display_name}")
+        embed.set_thumbnail(url=self._jacket_url(song["assetbundleName"]))
         embed.add_inline_field("ผู้แต่ง", composer, inline=False)
         embed.add_inline_field("เซิร์ฟเวอร์", server, inline=False)
 
@@ -226,6 +239,10 @@ class Chart(commands.Cog):
             )
 
         embed.add_inline_field("หมวดหมู่", category, inline=False)
+
+        master = next((d for d in charts if d["musicDifficulty"] == "master"), None)
+        if master:
+            embed.set_image(url=self._chart_image_url(song["id"], "master"))
         await interaction.followup.send(embed=embed, ephemeral=False)
 
     async def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict, server: str, en_map: dict):
@@ -240,6 +257,7 @@ class Chart(commands.Cog):
 
         embed = EmbedBuilder.hex(color, f"🎵 {display} — {label} ★{level}")
         embed.set_footer(text=f"ID: {song['id']} — Requested by {interaction.user.display_name}")
+        embed.set_image(url=self._chart_image_url(song["id"], diff))
         embed.add_inline_field("เซิร์ฟเวอร์", server, inline=False)
         embed.add_inline_field("โน้ตทั้งหมด", str(notes))
 
