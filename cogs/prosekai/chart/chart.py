@@ -195,11 +195,11 @@ class Chart(commands.Cog):
                     ephemeral=True,
                 )
                 return
-            self._show_chart(interaction, matched_song, c, presence_str, en_map)
+            await self._show_chart(interaction, matched_song, c, presence_str, en_map)
         else:
-            self._show_song(interaction, matched_song, charts, presence_str, en_map)
+            await self._show_song(interaction, matched_song, charts, presence_str, en_map)
 
-    def _show_song(self, interaction: discord.Interaction, song: dict, charts: list[dict], server: str, en_map: dict):
+    async def _show_song(self, interaction: discord.Interaction, song: dict, charts: list[dict], server: str, en_map: dict):
         title = song.get("title", "(ไม่ทราบชื่อ)")
         en_name = en_map.get(song["id"])
         display = f"{title} ({en_name})" if en_name else title
@@ -226,9 +226,9 @@ class Chart(commands.Cog):
             )
 
         embed.add_inline_field("หมวดหมู่", category, inline=False)
-        interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-    def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict, server: str, en_map: dict):
+    async def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict, server: str, en_map: dict):
         diff = chart["musicDifficulty"]
         title = song.get("title", "(ไม่ทราบชื่อ)")
         en_name = en_map.get(song["id"])
@@ -243,7 +243,7 @@ class Chart(commands.Cog):
         embed.add_inline_field("เซิร์ฟเวอร์", server, inline=False)
         embed.add_inline_field("โน้ตทั้งหมด", str(notes))
 
-        interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.app_commands.command(name="songs", description="แสดงรายชื่อเพลงทั้งหมดใน Project Sekai พร้อม ID")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
