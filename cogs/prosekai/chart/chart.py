@@ -152,7 +152,7 @@ class Chart(commands.Cog):
         song: str,
         difficulty: str | None = None,
     ):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=False, thinking=True)
 
         all_data = await self._fetch_all()
         en_map = self._build_en_map(all_data)
@@ -169,7 +169,7 @@ class Chart(commands.Cog):
         if matched_song is None:
             await interaction.followup.send(
                 f"ไม่พบเพลงที่ตรงกับ \"{song}\"",
-                ephemeral=True,
+                ephemeral=False,
             )
             return
 
@@ -192,7 +192,7 @@ class Chart(commands.Cog):
             if not c:
                 await interaction.followup.send(
                     f"ไม่พบ chart {DIFFICULTIES.get(difficulty, difficulty)} สำหรับเพลง \"{matched_song['title']}\"",
-                    ephemeral=True,
+                    ephemeral=False,
                 )
                 return
             await self._show_chart(interaction, matched_song, c, presence_str, en_map)
@@ -226,7 +226,7 @@ class Chart(commands.Cog):
             )
 
         embed.add_inline_field("หมวดหมู่", category, inline=False)
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=False)
 
     async def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict, server: str, en_map: dict):
         diff = chart["musicDifficulty"]
@@ -243,20 +243,20 @@ class Chart(commands.Cog):
         embed.add_inline_field("เซิร์ฟเวอร์", server, inline=False)
         embed.add_inline_field("โน้ตทั้งหมด", str(notes))
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=False)
 
     @discord.app_commands.command(name="songs", description="แสดงรายชื่อเพลงทั้งหมดใน Project Sekai พร้อม ID")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.describe(page="หมายเลขหน้า (เริ่มที่ 1)")
     async def songs(self, interaction: discord.Interaction, page: int = 1):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=False, thinking=True)
 
         all_data = await self._fetch_all()
         en_map = self._build_en_map(all_data)
         jp_pair = all_data.get("🇯🇵 JP")
         if jp_pair is None:
-            await interaction.followup.send("ไม่สามารถโหลดข้อมูลเพลงได้", ephemeral=True)
+            await interaction.followup.send("ไม่สามารถโหลดข้อมูลเพลงได้", ephemeral=False)
             return
 
         musics, _ = jp_pair
@@ -280,7 +280,7 @@ class Chart(commands.Cog):
         embed.description = "\n".join(lines)
 
         view = SongPaginationView(self, page, total_pages)
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=False)
 
 
 class SongPaginationView(discord.ui.View):
