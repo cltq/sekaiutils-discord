@@ -1,4 +1,7 @@
+import asyncio
 import logging
+
+import aiohttp
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -48,7 +51,6 @@ class Chart(commands.Cog):
             return await r.json(content_type=None)
 
     async def _fetch_server(self, base: str) -> tuple[list[dict], dict[int, list[dict]]]:
-        import aiohttp
         async with aiohttp.ClientSession() as session:
             musics = await self._fetch_json(f"{base}/musics.json", session)
             diffs = await self._fetch_json(f"{base}/musicDifficulties.json", session)
@@ -58,7 +60,6 @@ class Chart(commands.Cog):
         return musics, by_music
 
     async def _fetch_all(self):
-        import asyncio
         results = await asyncio.gather(
             *(self._fetch_server(base) for _, base in SERVERS),
             return_exceptions=True,
