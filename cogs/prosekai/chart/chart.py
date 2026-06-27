@@ -6,7 +6,7 @@ from utils.embed_builder import EmbedBuilder
 
 log = logging.getLogger(__name__)
 
-API_BASE = "https://sekai.best/api/v2"
+API_BASE = "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/main"
 
 DIFFICULTIES = {
     "easy": "EASY",
@@ -26,6 +26,8 @@ DIFFICULTY_COLORS = {
     "append": "#FF66AA",
 }
 
+DIFFICULTY_ORDER = ["easy", "normal", "hard", "expert", "master", "append"]
+
 
 class Chart(commands.Cog):
     __cog_name__ = "Chart"
@@ -33,24 +35,29 @@ class Chart(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def _fetch_songs(self) -> list[dict]:
+    async def _fetch_data(self) -> tuple[list[dict], dict[int, list[dict]]]:
         import aiohttp
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{API_BASE}/songs", timeout=aiohttp.ClientTimeout(total=20)) as resp:
-                data = await resp.json()
-                return data.get("songs", data) if isinstance(data, dict) else data
+            async with session.get(f"{API_BASE}/musics.json", timeout=aiohttp.ClientTimeout(total=30)) as r:
+                musics = await r.json()
+            async with session.get(f"{API_BASE}/musicDifficulties.json", timeout=aiohttp.ClientTimeout(total=30)) as r:
+                diffs = await r.json()
+        by_music: dict[int, list[dict]] = {}
+        for d in diffs:
+            by_music.setdefault(d["musicId"], []).append(d)
+        return musics, by_music
 
     async def _suggest_songs(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         try:
-            songs = await self._fetch_songs()
+            musics, _ = await self._fetch_data()
         except Exception:
             return [app_commands.Choice(name="ไม่สามารถโหลดรายชื่อเพลงได้", value="")]
 
-        matches = [s for s in songs if current.lower() in s.get("title", "").lower()]
+        matches = [s for s in musics if current.lower() in s.get("title", "").lower()]
         matches.sort(key=lambda s: s.get("title", ""))
 
         return [
-            app_commands.Choice(name=f"{s['title']}", value=str(s["id"]))
+            app_commands.Choice(name=s["title"], value=str(s["id"]))
             for s in matches[:25]
         ]
 
@@ -79,17 +86,18 @@ class Chart(commands.Cog):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         try:
-            songs = await self._fetch_songs()
-        except Exception:
+            musics, diff_map = await self._fetch_data()
+        except Exception as e:
+            log.error("Failed to fetch chart data: %s", e)
             await interaction.followup.send(
                 "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ข้อมูลเพลงได้ กรุณาลองใหม่ภายหลัง",
                 ephemeral=True,
             )
             return
 
-        matched = next((s for s in songs if str(s.get("id")) == song), None)
+        matched = next((s for s in musics if str(s.get("id")) == song), None)
         if not matched:
-            matched = next((s for s in songs if song.lower() in s.get("title", "").lower()), None)
+            matched = next((s for s in musics if song.lower() in s.get("title", "").lower()), None)
 
         if not matched:
             await interaction.followup.send(
@@ -98,55 +106,58 @@ class Chart(commands.Cog):
             )
             return
 
+        charts = diff_map.get(matched["id"], [])
+
         if difficulty:
-            charts = [c for c in matched.get("charts", []) if c.get("difficulty") == difficulty]
-            if not charts:
+            c = next((d for d in charts if d["musicDifficulty"] == difficulty), None)
+            if not c:
                 await interaction.followup.send(
                     f"ไม่พบ chart {DIFFICULTIES.get(difficulty, difficulty)} สำหรับเพลง \"{matched['title']}\"",
                     ephemeral=True,
                 )
                 return
-            self._show_chart(interaction, matched, charts[0], difficulty)
+            self._show_chart(interaction, matched, c)
         else:
-            self._show_song(interaction, matched)
+            self._show_song(interaction, matched, charts)
 
-    def _show_song(self, interaction: discord.Interaction, song: dict):
+    def _show_song(self, interaction: discord.Interaction, song: dict, charts: list[dict]):
         title = song.get("title", "(ไม่ทราบชื่อ)")
-        artist = song.get("composer", song.get("artist", "(ไม่ทราบผู้แต่ง)"))
-        category = song.get("categories", [None])[0] or "original"
+        composer = song.get("composer", "(ไม่ทราบผู้แต่ง)")
+        categories = song.get("categories", ["original"])
+        category = categories[0] if categories else "original"
+
         embed = EmbedBuilder.hex("#FF66AA", f"🎵 {title}")
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
-        embed.add_inline_field("ศิลปิน", artist, inline=False)
+        embed.add_inline_field("ผู้แต่ง", composer, inline=False)
 
-        for chart in song.get("charts", []):
-            diff = chart.get("difficulty", "?")
-            level = chart.get("level", "?")
-            note_count = sum(chart.get("noteCounts", {}).values()) if "noteCounts" in chart else "?"
+        seen = set()
+        for d in sorted(charts, key=lambda x: DIFFICULTY_ORDER.index(x["musicDifficulty"]) if x["musicDifficulty"] in DIFFICULTY_ORDER else 99):
+            diff = d["musicDifficulty"]
+            if diff in seen:
+                continue
+            seen.add(diff)
+            level = d.get("playLevel", "?")
+            notes = d.get("totalNoteCount", "?")
             color = DIFFICULTY_COLORS.get(diff, "#FFFFFF")
             embed.add_inline_field(
                 f"{DIFFICULTIES.get(diff, diff).upper()} ★{level}",
-                f"โน้ต: {note_count}",
+                f"โน้ต: {notes}",
             )
 
         embed.add_inline_field("หมวดหมู่", category, inline=False)
         interaction.followup.send(embed=embed, ephemeral=True)
 
-    def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict, diff_key: str):
+    def _show_chart(self, interaction: discord.Interaction, song: dict, chart: dict):
+        diff = chart["musicDifficulty"]
         title = song.get("title", "(ไม่ทราบชื่อ)")
-        level = chart.get("level", "?")
-        note_counts = chart.get("noteCounts", {})
-        total_notes = sum(note_counts.values())
-        color = DIFFICULTY_COLORS.get(diff_key, "#FFFFFF")
-        diff_label = DIFFICULTIES.get(diff_key, diff_key.upper())
+        level = chart.get("playLevel", "?")
+        notes = chart.get("totalNoteCount", "?")
+        color = DIFFICULTY_COLORS.get(diff, "#FFFFFF")
+        label = DIFFICULTIES.get(diff, diff.upper())
 
-        embed = EmbedBuilder.hex(color, f"🎵 {title} — {diff_label} ★{level}")
+        embed = EmbedBuilder.hex(color, f"🎵 {title} — {label} ★{level}")
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
-        embed.add_inline_field("โน้ตทั้งหมด", str(total_notes))
-
-        for note_type, count in note_counts.items():
-            embed.add_inline_field(note_type.capitalize(), str(count))
-
-        embed.add_inline_field("Combo", str(chart.get("combo", "?")), inline=False)
+        embed.add_inline_field("โน้ตทั้งหมด", str(notes))
 
         interaction.followup.send(embed=embed, ephemeral=True)
 
