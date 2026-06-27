@@ -43,13 +43,15 @@ class Chart(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def _fetch_json(self, url: str, session: aiohttp.ClientSession):
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as r:
+            return await r.json(content_type=None)
+
     async def _fetch_server(self, base: str) -> tuple[list[dict], dict[int, list[dict]]]:
         import aiohttp
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{base}/musics.json", timeout=aiohttp.ClientTimeout(total=30)) as r:
-                musics = await r.json()
-            async with session.get(f"{base}/musicDifficulties.json", timeout=aiohttp.ClientTimeout(total=30)) as r:
-                diffs = await r.json()
+            musics = await self._fetch_json(f"{base}/musics.json", session)
+            diffs = await self._fetch_json(f"{base}/musicDifficulties.json", session)
         by_music: dict[int, list[dict]] = {}
         for d in diffs:
             by_music.setdefault(d["musicId"], []).append(d)
