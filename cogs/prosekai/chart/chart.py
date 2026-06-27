@@ -33,13 +33,35 @@ class Chart(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def _fetch_songs(self) -> list[dict]:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{API_BASE}/songs", timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                data = await resp.json()
+                return data.get("songs", data) if isinstance(data, dict) else data
+
+    async def _suggest_songs(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        try:
+            songs = await self._fetch_songs()
+        except Exception:
+            return [app_commands.Choice(name="ไม่สามารถโหลดรายชื่อเพลงได้", value="")]
+
+        matches = [s for s in songs if current.lower() in s.get("title", "").lower()]
+        matches.sort(key=lambda s: s.get("title", ""))
+
+        return [
+            app_commands.Choice(name=f"{s['title']}", value=str(s["id"]))
+            for s in matches[:25]
+        ]
+
     @discord.app_commands.command(name="chart", description="ค้นหา chart เพลงใน Project Sekai")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.describe(
-        song="ชื่อเพลงหรือบางส่วนของชื่อเพลงที่ต้องการค้นหา",
+        song="ชื่อเพลงหรือเลือกจากรายการ",
         difficulty="ระดับ difficulty (easy / normal / hard / expert / master / append)",
     )
+    @app_commands.autocomplete(song=_suggest_songs)
     @app_commands.choices(difficulty=[
         app_commands.Choice(name="EASY", value="easy"),
         app_commands.Choice(name="NORMAL", value="normal"),
@@ -65,16 +87,16 @@ class Chart(commands.Cog):
             )
             return
 
-        matches = [s for s in songs if song.lower() in s.get("title", "").lower()]
+        matched = next((s for s in songs if str(s.get("id")) == song), None)
+        if not matched:
+            matched = next((s for s in songs if song.lower() in s.get("title", "").lower()), None)
 
-        if not matches:
+        if not matched:
             await interaction.followup.send(
-                f"ไม่พบเพลงที่ชื่อ \"{song}\"",
+                f"ไม่พบเพลงที่ตรงกับ \"{song}\"",
                 ephemeral=True,
             )
             return
-
-        matched = matches[0]
 
         if difficulty:
             charts = [c for c in matched.get("charts", []) if c.get("difficulty") == difficulty]
@@ -127,13 +149,6 @@ class Chart(commands.Cog):
         embed.add_inline_field("Combo", str(chart.get("combo", "?")), inline=False)
 
         interaction.followup.send(embed=embed, ephemeral=True)
-
-    async def _fetch_songs(self) -> list[dict]:
-        import aiohttp
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{API_BASE}/songs", timeout=aiohttp.ClientTimeout(total=20)) as resp:
-                data = await resp.json()
-                return data.get("songs", data) if isinstance(data, dict) else data
 
 
 async def setup(bot):
