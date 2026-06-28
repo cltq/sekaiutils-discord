@@ -19,12 +19,19 @@ REMOTE_LABELS = {
 
 def _git_log(remote: str, all_commits: bool) -> str:
     try:
-        args = ["git", "log", f"{remote}/main", "--oneline"]
+        subprocess.run(
+            ["git", "fetch", "--quiet", remote, "main"],
+            capture_output=True, timeout=15,
+        )
+        args = ["git", "log", f"{remote}/main", "--oneline", "--no-merges"]
         if not all_commits:
             args.extend(["-5"])
         result = subprocess.run(args, capture_output=True, text=True, timeout=15)
-        output = result.stdout.strip()
-        return output or "(no commits found)"
+        lines = result.stdout.strip().splitlines()
+        if not lines:
+            return "(no commits found)"
+        formatted = "\n".join(f"{i+1}. {line}" for i, line in enumerate(lines))
+        return formatted
     except subprocess.CalledProcessError:
         return "(failed to fetch log)"
     except FileNotFoundError:
@@ -70,7 +77,7 @@ class Git(commands.Cog):
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.describe(
         remote="เลือก remote ที่ต้องการดู commits",
-        all="แสดงทุก commits (true) หรือแค่ 5 ล่าสุด (false)",
+        all="แสดงทั้งหมด (true) หรือแค่ 5 ล่าสุด (false, default)",
         ephemeral="ตอบกลับแบบส่วนตัว (default: false)",
     )
     @app_commands.choices(remote=REMOTE_CHOICES)
