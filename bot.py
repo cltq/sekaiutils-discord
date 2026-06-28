@@ -21,6 +21,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+_bot_connected = False
+
 
 @bot.event
 async def on_ready():
@@ -47,6 +49,20 @@ async def on_ready():
     )
 
 
+@bot.event
+async def on_connect():
+    global _bot_connected
+    _bot_connected = True
+    log.info("Connected to Discord gateway")
+
+
+@bot.event
+async def on_disconnect():
+    global _bot_connected
+    _bot_connected = False
+    log.warning("Disconnected from Discord gateway")
+
+
 async def load_cogs():
     cogs_dir = pathlib.Path("cogs")
     paths = sorted(cogs_dir.rglob("*.py"))
@@ -69,7 +85,16 @@ HEALTH_PORT = 88990
 
 async def _health_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     await reader.readuntil(b"\r\n\r\n")
-    response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+    status = b"ok" if _bot_connected else b"disconnected"
+    http_status = 200 if _bot_connected else 503
+    body = f"{http_status} {status.decode()}"
+    response = (
+        f"HTTP/1.1 {http_status} {status.decode().title()}\r\n"
+        f"Content-Type: text/plain\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        f"Connection: close\r\n\r\n"
+        f"{body}"
+    ).encode()
     writer.write(response)
     await writer.drain()
     writer.close()
@@ -82,49 +107,80 @@ async def run_health_server():
         await server.serve_forever()
 
 
-async def main():
-    log.info("Starting bot...")
-    async with bot:
-        log.info("Bot logged in, loading cogs...")
-        await load_cogs()
-        token = os.environ["BOT_TOKEN"]
-        log.info("Connecting to gateway...")
-        _original_identify = discord.gateway.DiscordWebSocket.identify
+async def keep_alive():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            await bot.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.custom,
+                    name="Custom Status",
+                    state="meow! :D - Fumi",
+                )
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(60)
 
-        async def _mobile_identify(self):
-            payload = {
-                "op": self.IDENTIFY,
-                "d": {
-                    "token": self.token,
-                    "properties": {
-                        "os": sys.platform,
-                        "browser": "Discord iOS",
-                        "device": "discord.py",
-                    },
-                    "compress": True,
-                    "large_threshold": 250,
+
+def _patch_mobile_identify():
+    async def _mobile_identify(self):
+        payload = {
+            "op": self.IDENTIFY,
+            "d": {
+                "token": self.token,
+                "properties": {
+                    "os": sys.platform,
+                    "browser": "Discord iOS",
+                    "device": "discord.py",
                 },
+                "compress": True,
+                "large_threshold": 250,
+            },
+        }
+        if self.shard_id is not None and self.shard_count is not None:
+            payload["d"]["shard"] = [self.shard_id, self.shard_count]
+        state = self._connection
+        if state._activity is not None or state._status is not None:
+            payload["d"]["presence"] = {
+                "status": state._status,
+                "game": state._activity,
+                "since": 0,
+                "afk": False,
             }
-            if self.shard_id is not None and self.shard_count is not None:
-                payload["d"]["shard"] = [self.shard_id, self.shard_count]
-            state = self._connection
-            if state._activity is not None or state._status is not None:
-                payload["d"]["presence"] = {
-                    "status": state._status,
-                    "game": state._activity,
-                    "since": 0,
-                    "afk": False,
-                }
-            if state._intents is not None:
-                payload["d"]["intents"] = state._intents.value
-            await self.call_hooks("before_identify", self.shard_id, initial=self._initial_identify)
-            await self.send_as_json(payload)
+        if state._intents is not None:
+            payload["d"]["intents"] = state._intents.value
+        await self.call_hooks("before_identify", self.shard_id, initial=self._initial_identify)
+        await self.send_as_json(payload)
 
-        discord.gateway.DiscordWebSocket.identify = _mobile_identify
+    discord.gateway.DiscordWebSocket.identify = _mobile_identify
 
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(run_health_server())
-            tg.create_task(bot.start(token))
+
+async def run_bot_forever():
+    token = os.environ["BOT_TOKEN"]
+    _patch_mobile_identify()
+    while True:
+        try:
+            log.info("Starting bot session...")
+            async with bot:
+                log.info("Loading cogs...")
+                await load_cogs()
+                log.info("Connecting to Discord gateway...")
+                async with asyncio.TaskGroup() as tg:
+                    tg.create_task(bot.start(token))
+                    tg.create_task(keep_alive())
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.error("Bot session ended with error: %s", e, exc_info=True)
+        log.warning("Reconnecting in 10 seconds...")
+        await asyncio.sleep(10)
+
+
+async def main():
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(run_health_server())
+        tg.create_task(run_bot_forever())
 
 
 if __name__ == "__main__":
