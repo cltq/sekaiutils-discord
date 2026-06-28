@@ -1,3 +1,4 @@
+import asyncio
 import pathlib
 import logging
 import sys
@@ -62,6 +63,25 @@ async def load_cogs():
             log.error("Failed to load cog %s: %s", module, e)
 
 
+HEALTH_HOST = "0.0.0.0"
+HEALTH_PORT = 88990
+
+
+async def _health_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    await reader.readuntil(b"\r\n\r\n")
+    response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+    writer.write(response)
+    await writer.drain()
+    writer.close()
+
+
+async def run_health_server():
+    server = await asyncio.start_server(_health_handler, HEALTH_HOST, HEALTH_PORT)
+    log.info("Health check server listening on %s:%d", HEALTH_HOST, HEALTH_PORT)
+    async with server:
+        await server.serve_forever()
+
+
 async def main():
     log.info("Starting bot...")
     async with bot:
@@ -101,10 +121,12 @@ async def main():
             await self.send_as_json(payload)
 
         discord.gateway.DiscordWebSocket.identify = _mobile_identify
-        await bot.start(token)
+
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(run_health_server())
+            tg.create_task(bot.start(token))
 
 
 if __name__ == "__main__":
-    import asyncio
     log.info("Bot process started")
     asyncio.run(main())
