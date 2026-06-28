@@ -33,6 +33,30 @@ def _git_log(remote: str, all_commits: bool) -> str:
         return f"({e})"
 
 
+def _remote_info(remote: str) -> tuple[str, str] | None:
+    try:
+        url = subprocess.run(
+            ["git", "remote", "get-url", remote],
+            capture_output=True, text=True, timeout=10,
+        ).stdout.strip()
+        if not url:
+            return None
+        raw = url.replace(".git", "")
+        if raw.startswith("https://"):
+            parts = raw.split("/")
+        elif ":" in raw and "@" in raw:
+            parts = raw.split(":")[-1].split("/")
+        else:
+            return None
+        if len(parts) >= 2:
+            repo_path = f"{parts[-2]}/{parts[-1]}"
+            host = parts[2] if raw.startswith("https://") else raw.split("@")[-1].split(":")[0]
+            return (repo_path, host)
+        return None
+    except Exception:
+        return None
+
+
 class Git(commands.Cog):
     __cog_name__ = "Git"
 
@@ -64,8 +88,19 @@ class Git(commands.Cog):
 
         log = _git_log(remote, all)
         label = REMOTE_LABELS.get(remote, remote)
+        info = _remote_info(remote)
+        if info:
+            repo_path, host = info
+            scheme = "https://"
+            url = f"{scheme}{host}/{repo_path}"
+            field_value = f"[`{repo_path}`]({url})\n```{log}```"
+        else:
+            repo_path = "?"
+            field_value = f"```{log}```"
         embed.add_inline_field(
-            f"🔗 {label} (using {remote}/main)", f"```{log}```", inline=False
+            f"🔗 {label} (using {remote}/main) - {remote}/{repo_path}",
+            field_value,
+            inline=False,
         )
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
