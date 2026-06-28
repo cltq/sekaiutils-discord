@@ -87,6 +87,27 @@ if ! command -v ffmpeg &>/dev/null; then
 fi
 command -v ffmpeg &>/dev/null && msg "ffmpeg: $(ffmpeg -version 2>&1 | head -1)" || warn "ffmpeg ไม่พร้อม — เสียงจะไม่ทำงาน"
 
+# ---- Git pull ----
+msg "ตรวจสอบการอัปเดตจาก GitHub..."
+REMOTE_URL="origin"
+if command -v git &>/dev/null; then
+    if git remote get-url "$REMOTE_URL" &>/dev/null; then
+        git fetch "$REMOTE_URL" 2>&1 || warn "fetch ล้มเหลว — ข้าม"
+        LOCAL=$(git rev-parse HEAD 2>/dev/null || echo "")
+        REMOTE=$(git rev-parse "@{upstream}" 2>/dev/null || echo "")
+        if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+            msg "พบการอัปเดต — กำลัง pull..."
+            git pull --ff-only "$REMOTE_URL" main 2>&1 || warn "pull ล้มเหลว — ใช้โค้ดเดิม"
+        else
+            msg "โค้ดล่าสุดแล้ว"
+        fi
+    else
+        warn "ไม่มี remote '$REMOTE_URL' — ข้าม git pull"
+    fi
+else
+    warn "ไม่พบ git — ข้ามการตรวจสอบอัปเดต"
+fi
+
 # ---- venv & deps ----
 if [ "$OS" = windows ]; then
     msg "Windows: ไม่ใช้ virtual environment"
