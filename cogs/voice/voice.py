@@ -62,6 +62,8 @@ class Voice(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         vc = interaction.guild.voice_client
         if vc:
             if vc.channel != target:
@@ -81,18 +83,7 @@ class Voice(commands.Cog):
             set_guild(interaction.guild_id, "auto_read_enabled", False)
             msg += " และปิดอ่านข้อความอัตโนมัติ"
 
-        await interaction.response.send_message(msg)
-
-    @discord.app_commands.command(name="leave", description="ออกจากห้องเสียง")
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
-    async def leave(self, interaction: discord.Interaction):
-        set_guild(interaction.guild_id, "auto_read_enabled", False)
-        vc = interaction.guild.voice_client
-        if vc:
-            await vc.disconnect(force=True)
-            await interaction.response.send_message("ออกจากห้องเสียงแล้ว")
-        else:
-            await interaction.response.send_message("บอทไม่ได้อยู่ในห้องเสียง")
+        await interaction.followup.send(msg, ephemeral=True)
 
     async def _read_queue(
         self,
@@ -249,11 +240,23 @@ class Voice(commands.Cog):
         if member != self.bot.user:
             return
         if before.channel and not after.channel:
-            log.warning("บอทถูกตัดการเชื่อมต่อจากห้องเสียง")
-            set_guild(member.guild.id, "auto_read_enabled", False)
-            vc = member.guild.voice_client
-            if vc:
-                await vc.disconnect(force=True)
+            log.warning("ตัดการเชื่อมต่อ — กำลังเชื่อมต่อใหม่ทันที")
+            cfg = get_guild(member.guild.id)
+            channel_id = cfg.get("auto_read_channel_id") or before.channel.id
+            for attempt in range(30):
+                vc = member.guild.voice_client
+                if vc and vc.is_connected():
+                    return
+                channel = member.guild.get_channel(channel_id)
+                if isinstance(channel, discord.VoiceChannel):
+                    try:
+                        await channel.connect()
+                        log.info("เชื่อมต่อใหม่สำเร็จ (ครั้งที่ %d)", attempt + 1)
+                        return
+                    except Exception:
+                        pass
+                await asyncio.sleep(2 ** min(attempt, 4))
+            log.error("เชื่อมต่อใหม่ล้มเหลวหลังจาก 30 ครั้ง")
 
 
 async def setup(bot):
