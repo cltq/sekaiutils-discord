@@ -29,21 +29,27 @@ class Info(commands.Cog):
         parts.append(f"{seconds} วินาที")
         return " ".join(parts)
 
-    def _owner_id(self) -> str | None:
-        return os.environ.get("BOT_CREATOR")
+    async def _owner_display(self) -> str:
+        owner_id = os.environ.get("BOT_CREATOR")
+        if not owner_id:
+            return "ไม่ทราบ"
+        try:
+            user = await self.bot.fetch_user(int(owner_id))
+            return f"{user.name} (`{owner_id}`)" if user else f"`{owner_id}`"
+        except Exception:
+            return f"`{owner_id}`"
 
     @discord.app_commands.command(name="info", description="แสดงข้อมูลบอท")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.allowed_installs(guilds=True, users=True)
     async def info(self, interaction: discord.Interaction):
-        owner_id = self._owner_id()
-        owner_mention = f"<@{owner_id}>" if owner_id else "ไม่ทราบ"
+        owner_display = await self._owner_display()
 
         embed = EmbedBuilder.hex(PRIMARY, "ข้อมูลบอท", f"ข้อมูลทั่วไปของ {self.bot.user.name}")
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         embed.add_inline_field("ชื่อ", self.bot.user.name)
         embed.add_inline_field("ID", str(self.bot.user.id))
-        embed.add_inline_field("เจ้าของ", owner_mention)
+        embed.add_inline_field("เจ้าของ", owner_display)
         embed.add_inline_field("อัปไทม์", self._uptime())
         embed.add_inline_field("Status Page", "https://discordstatus.com")
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
