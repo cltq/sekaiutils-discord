@@ -80,7 +80,7 @@ async def load_cogs():
 
 
 HEALTH_HOST = "0.0.0.0"
-HEALTH_PORT = 88990
+HEALTH_PORT = 8899
 
 
 async def _health_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
