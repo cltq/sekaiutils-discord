@@ -27,6 +27,8 @@ changelogs/                    # Changelog markdown files (changelog-YYYY-MM-DD-
 unused/                        # ไม่โหลด, พร้อม reactivate
 ```
 
+GitHub repo: `https://github.com/cltq/sekaiutils-discord`
+
 ## กฎและแนวทาง
 
 ### Cog conventions
@@ -72,6 +74,21 @@ async def cmd(self, i): ...
 - `.env` ใช้ `python-dotenv` style (อ่านด้วย `set -a; source .env; set +a` ใน auto.sh)
 - Docker image: `python:3.13-slim` + ffmpeg
 - Changelogs เก็บใน `changelogs/` ชื่อไฟล์ `changelog-YYYY-MM-DD-HH-MM.md` (markdown, ไม่เขียนทับไฟล์เก่า)
+
+### Changelog rules (บังคับ)
+- **ทุก commit ต้องมี changelog** — เพิ่ม/แก้ไขไฟล์ใน `changelogs/` ทุกครั้ง
+- ถ้าวันเดียวกันมี changelog อยู่แล้ว → **append** ลงไฟล์เดิม ห้ามสร้างไฟล์ใหม่
+- ถ้าเป็นวันใหม่ → สร้างไฟล์ใหม่ `changelog-YYYY-MM-DD-HH-MM.md`
+- แต่ละรายการต้องลงท้ายด้วย commit link: `` [`short_id`](https://github.com/cltq/sekaiutils-discord/commit/short_id) ``
+- ใช้ sections: `## Added`, `## Changed`, `## Fixed`, `## Removed` ตามความเหมาะสม
+- ตัวอย่าง:
+  ```markdown
+  ## Added
+  - **`/command`** — คำอธิบายสั้นๆ [`abc1234`](https://github.com/cltq/sekaiutils-discord/commit/abc1234)
+
+  ## Changed
+  - **`/command`** — แก้ไขอะไร [`def5678`](https://github.com/cltq/sekaiutils-discord/commit/def5678)
+  ```
 
 ### การเพิ่ม cog ใหม่
 1. สร้าง `.py` file ใน `cogs/<category>/`
