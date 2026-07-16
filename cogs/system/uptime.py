@@ -1,3 +1,4 @@
+import os
 import time
 
 import discord
@@ -41,6 +42,25 @@ class Uptime(commands.Cog):
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
 
         await interaction.response.send_message(embed=embed)
+
+    @discord.app_commands.command(name="restart", description="รีสตาร์ทบอท (owner only)")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    async def restart(self, interaction: discord.Interaction):
+        owner_id = os.environ.get("BOT_CREATOR")
+        if str(interaction.user.id) != owner_id:
+            embed = EmbedBuilder.error("Restart", "คุณไม่มีสิทธิ์ใช้คำสั่งนี้")
+            embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+            await interaction.response.send_message(embed=embed, ephemeral=False)
+            return
+
+        embed = EmbedBuilder.success("Restart", "กำลังรีสตาร์ทบอท...")
+        embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+        await interaction.response.send_message(embed=embed)
+
+        import bot as bot_module
+        bot_module.request_restart()
+        await self.bot.close()
 
 
 async def setup(bot):

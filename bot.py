@@ -22,6 +22,12 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 _bot_connected = False
+_restart_requested = False
+
+
+def request_restart():
+    global _restart_requested
+    _restart_requested = True
 
 
 @bot.event
@@ -173,6 +179,11 @@ async def run_bot_forever():
             raise
         except Exception as e:
             log.error("Bot session ended with error: %s", e, exc_info=True)
+
+        if _restart_requested:
+            log.info("Restart requested — exiting process")
+            sys.exit(0)
+
         log.warning("Reconnecting in 10 seconds...")
         await asyncio.sleep(10)
 
