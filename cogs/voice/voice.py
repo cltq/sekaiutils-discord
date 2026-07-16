@@ -85,6 +85,29 @@ class Voice(commands.Cog):
 
         await interaction.followup.send(msg, ephemeral=True)
 
+    @discord.app_commands.command(name="leave", description="ตัดการเชื่อมต่อจากห้องเสียง")
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+    async def leave(self, interaction: discord.Interaction):
+        """Disconnect the bot from voice in this guild and disable auto-read."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        vc = interaction.guild.voice_client
+        if not vc or not vc.is_connected():
+            await interaction.followup.send("บอทไม่ได้เชื่อมต่อกับห้องเสียง", ephemeral=True)
+            return
+
+        try:
+            await vc.disconnect()
+            set_guild(interaction.guild_id, "auto_read_enabled", False)
+            set_guild(interaction.guild_id, "auto_read_channel_id", None)
+            await interaction.followup.send(
+                "ตัดการเชื่อมต่อจากห้องเสียงแล้ว และปิดอ่านข้อความอัตโนมัติ",
+                ephemeral=True,
+            )
+        except Exception as e:
+            log.error("ไม่สามารถตัดการเชื่อมต่อห้องเสียง: %s", e, exc_info=True)
+            await interaction.followup.send(f"ไม่สามารถตัดการเชื่อมต่อได้: {e}", ephemeral=True)
+
     async def _read_queue(
         self,
         lock: asyncio.Lock,
