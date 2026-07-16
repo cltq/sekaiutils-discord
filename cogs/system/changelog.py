@@ -47,15 +47,18 @@ class Changelog(commands.Cog):
     @discord.app_commands.command(name="changelog", description="ดู changelog ล่าสุดหรือเลือกดูตามวันที่")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.describe(select="เลือกวันที่ changelog (ถ้าไม่เลือกจะแสดงตัวล่าสุด)")
-    async def changelog(self, interaction: discord.Interaction, select: str | None = None):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+    @app_commands.describe(
+        select="เลือกวันที่ changelog (ถ้าไม่เลือกจะแสดงตัวล่าสุด)",
+        ephemeral="ตอบกลับแบบส่วนตัว (default: false)",
+    )
+    async def changelog(self, interaction: discord.Interaction, select: str | None = None, ephemeral: bool = False):
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
         changelogs = _parse_changelogs()
         if not changelogs:
             embed = EmbedBuilder.warning("Changelog", "ยังไม่มี changelog ในระบบ")
             embed.set_footer(text=f"Requested by {interaction.user.display_name}")
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             return
 
         if select:
@@ -67,7 +70,7 @@ class Changelog(commands.Cog):
             if not target:
                 embed = EmbedBuilder.error("Changelog", f"ไม่พบ changelog สำหรับ `{select}`")
                 embed.set_footer(text=f"Requested by {interaction.user.display_name}")
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             date_str, time_str, path = target
         else:
@@ -79,7 +82,7 @@ class Changelog(commands.Cog):
         embed = EmbedBuilder.hex(PRIMARY, f"📋 Changelog — {display_date}", _truncate(content))
         embed.set_footer(text=f"ไฟล์: {path.name} • Requested by {interaction.user.display_name}")
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @changelog.autocomplete("select")
     async def changelog_autocomplete(self, interaction: discord.Interaction, current: str):
