@@ -5,7 +5,13 @@
 ```
 cogs/                          # โหลดทั้งหมดอัตโนมัติ (ยกเว้น __init__.py)
 ├── fumi/authorizer.py         # /auth — OAuth2 verification
-├── general/help.py            # /help — Bot info
+├── general/
+│   ├── help.py                # /help — Bot info
+│   └── info.py                # /info — Bot info embed
+├── system/
+│   ├── git.py                 # /git — Git log viewer
+│   ├── changelog.py           # /changelog — Changelog viewer (reads from changelogs/)
+│   └── uptime.py              # /uptime — Bot uptime + latency
 ├── voice/voice.py             # TTS voice commands (edge-tts)
 ├── prosekai/chart/chart.py    # /chart, /songs — chart viewer + song list
 └── pjsk_info_summarize/       # Static info commands
@@ -17,6 +23,7 @@ utils/
 ├── embed_builder.py           # EmbedBuilder subclass (fluent API)
 ├── guild_config.py            # JSON-based per-guild config
 └── admin_guard.py             # Admin allowlist + BOT_CREATOR check
+changelogs/                    # Changelog markdown files (changelog-YYYY-MM-DD-HH-MM.md)
 unused/                        # ไม่โหลด, พร้อม reactivate
 ```
 
@@ -64,6 +71,7 @@ async def cmd(self, i): ...
 - `unused/` contains archived/admin commands ที่ไม่ถูกโหลดอัตโนมัติ
 - `.env` ใช้ `python-dotenv` style (อ่านด้วย `set -a; source .env; set +a` ใน auto.sh)
 - Docker image: `python:3.13-slim` + ffmpeg
+- Changelogs เก็บใน `changelogs/` ชื่อไฟล์ `changelog-YYYY-MM-DD-HH-MM.md` (markdown, ไม่เขียนทับไฟล์เก่า)
 
 ### การเพิ่ม cog ใหม่
 1. สร้าง `.py` file ใน `cogs/<category>/`
