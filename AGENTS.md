@@ -11,7 +11,7 @@ cogs/                          # โหลดทั้งหมดอัตโ�
 ├── system/
 │   ├── git.py                 # /git — Git log viewer
 │   ├── changelog.py           # /changelog — Changelog viewer (reads from changelogs/)
-│   └── uptime.py              # /uptime — Bot uptime + latency
+│   └── uptime.py              # /uptime, /restart — Bot uptime + restart (owner only)
 ├── voice/voice.py             # TTS voice commands (edge-tts)
 ├── prosekai/chart/chart.py    # /chart, /songs — chart viewer + song list
 └── pjsk_info_summarize/       # Static info commands
