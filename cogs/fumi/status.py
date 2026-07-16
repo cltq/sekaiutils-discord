@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 
 import aiohttp
@@ -8,7 +9,7 @@ from discord.ext import commands
 
 from utils.embed_builder import EmbedBuilder
 
-MACHINE_IP = "192.168.1.36"
+MACHINE_IP = os.environ.get("MACHINE_IP", "127.0.0.1")
 BOT_HEALTHCHECK_PORT = 8899
 API_PORT = 6770
 
